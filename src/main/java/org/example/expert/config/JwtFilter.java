@@ -11,22 +11,21 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.expert.domain.user.enums.UserRole;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
 @Slf4j
+@Component
 @RequiredArgsConstructor
-public class JwtFilter implements Filter {
+public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
 
-    @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
-        Filter.super.init(filterConfig);
-    }
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+    public void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
@@ -62,16 +61,6 @@ public class JwtFilter implements Filter {
             httpRequest.setAttribute("userRole", claims.get("userRole"));
             httpRequest.setAttribute("nickname", claims.get("nickname")); // 백엔드에서도 사용할지 모르니 일단 추가
 
-            if (url.startsWith("/admin")) {
-                // 관리자 권한이 없는 경우 403을 반환합니다.
-                if (!UserRole.ADMIN.equals(userRole)) {
-                    httpResponse.sendError(HttpServletResponse.SC_FORBIDDEN, "관리자 권한이 없습니다.");
-                    return;
-                }
-                chain.doFilter(request, response);
-                return;
-            }
-
             chain.doFilter(request, response);
         } catch (SecurityException | MalformedJwtException e) {
             log.error("Invalid JWT signature, 유효하지 않는 JWT 서명 입니다.", e);
@@ -86,10 +75,5 @@ public class JwtFilter implements Filter {
             log.error("Internal server error", e);
             httpResponse.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
-    }
-
-    @Override
-    public void destroy() {
-        Filter.super.destroy();
     }
 }
